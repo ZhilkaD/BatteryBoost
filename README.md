@@ -30,3 +30,4 @@ Advanced power optimization and scheduler tuning module for **KernelSU** and **M
 
 ### Gaming Logic
 * **Smart Boost:** Dynamic load detection. Automatically suspends all power limits during heavy gaming sessions to sustain maximum FPS, reapplying them instantly upon exit.
+[![Download](https://img.shields.io/github/v/release/ZhilkaD/BatteryBoost?label=Download%20ZIP&style=for-the-badge)](https://github.com/ZhilkaD/BatteryBoost/releases/latest)
