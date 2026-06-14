@@ -1,0 +1,123 @@
+#!/system/bin/sh
+[ -z "$MODDIR" ] && return 1
+
+P0="/sys/devices/system/cpu/cpufreq/policy0"
+P4="/sys/devices/system/cpu/cpufreq/policy4"
+P7="/sys/devices/system/cpu/cpufreq/policy7"
+W0="$P0/walt"; W4="$P4/walt"; W7="$P7/walt"
+WP="/proc/sys/walt"; KS="/proc/sys/kernel"
+
+_try_mod() {
+    local f="$1" v="$2" n="$3"
+    [ -f "$f" ] || { log "SKIP $n (not found)"; SKIPPED=$((SKIPPED+1)); return 1; }
+    local old; old="$(cat "$f" 2>/dev/null)"
+    [ "$old" = "$v" ] && return 0
+    echo "$v" > "$f" 2>/dev/null
+    local got; got="$(cat "$f" 2>/dev/null)"
+    if [ "$got" = "$v" ]; then
+        log " OK  $n: [$old]->[$got]"; APPLIED=$((APPLIED+1)); return 0
+    fi
+    log "SKIP $n: not writable (want=$v got=$got)"; SKIPPED=$((SKIPPED+1)); return 1
+}
+
+sec "KERNEL SCHED"
+write_val "$KS/sched_util_clamp_min"       "128" "clamp_min (1024->128)"
+write_val "$KS/sched_pelt_multiplier"        "4" "pelt_mult (1->4)"
+write_val "$KS/sched_schedstats"             "0" "schedstats off"
+write_val "$KS/perf_cpu_time_max_percent"    "5" "perf_cpu_time (25->5)"
+write_val "$KS/sched_nr_migrate"            "24" "nr_migrate (32->24)"
+write_val "$KS/sched_wakeup_granularity_ns" "3000000" "wakeup_gran (2->3ms)"
+write_val "$KS/sched_migration_cost_ns"     "1000000" "migr_cost (500k->1ms)"
+write_val "$KS/timer_migration"              "1" "timer_migration"
+write_val "$KS/sched_energy_aware"           "1" "energy_aware"
+
+sec "SILVER CORE CONTROL"
+CC0="/sys/devices/system/cpu/cpu0/core_ctl"
+write_val "$CC0/enable"              "1" "Silver core_ctl enable (0->1)"
+write_val "$CC0/min_cpus"            "1" "Silver min_cpus"
+write_val "$CC0/max_cpus"            "4" "Silver max_cpus"
+write_val "$CC0/offline_delay_ms"    "50" "Silver offline_delay (200->50)"
+write_val "$CC0/busy_up_thres"  "75 75 75 75" "Silver busy_up"
+write_val "$CC0/busy_down_thres" "25 25 25 25" "Silver busy_down (0->25)"
+write_val "$CC0/task_thres"          "4" "Silver task_thres (MAX->4 allow offline)"
+write_val "$CC0/need_cpus"            "1" "Silver need_cpus (4->1 min_cpus floor)"
+
+sec "SILVER FREQ (CPU0-3)"
+write_val "$P0/scaling_min_freq"   "441600" "Silver min (stable 441600 vs 556800)"
+write_val "$P0/scaling_max_freq"  "1804800" "Silver max (daemon holds vs ORMS/thermal)"
+write_val "$W0/target_loads"          "85" "Silver target_loads (80->85)"
+write_val "$W0/hispeed_freq"      "940800" "Silver hispeed (1228800->940800)"
+write_val "$W0/hispeed_load"          "87" "Silver hispeed_load (90->87)"
+write_val "$W0/adaptive_low_freq" "300000" "Silver adaptive_low (556800->300000)"
+write_val "$W0/adaptive_high_freq" "1056000" "Silver adaptive_high"
+write_val "$W0/up_rate_limit_us"     "500" "Silver up_rate"
+write_val "$W0/down_rate_limit_us"  "2000" "Silver down_rate"
+write_val "$W0/rtg_boost_freq"    "691200" "Silver rtg_boost (1M->691k)"
+write_val "$W0/boost"                  "0" "Silver boost off"
+
+sec "GOLD (CPU4-6)"
+write_val "$P4/scaling_max_freq"  "2112000" "Gold max (2227->2112)"
+write_val "$W4/target_loads"  "85 2112000:97" "Gold target_loads"
+write_val "$W4/hispeed_freq"   "1440000" "Gold hispeed (1555->1440)"
+write_val "$W4/hispeed_load"       "90" "Gold hispeed_load"
+write_val "$W4/adaptive_low_freq"  "768000" "Gold adaptive_low"
+write_val "$W4/adaptive_high_freq" "1440000" "Gold adaptive_high"
+write_val "$W4/up_rate_limit_us"      "500" "Gold up_rate"
+write_val "$W4/down_rate_limit_us"   "2000" "Gold down_rate"
+write_val "$W4/rtg_boost_freq"    "633600" "Gold rtg_boost (768k->633k)"
+write_val "$W4/boost"                  "0" "Gold boost off"
+
+CC4="/sys/devices/system/cpu/cpu4/core_ctl"
+write_val "$CC4/min_cpus"          "1" "Gold min_cpus (2->1)"
+write_val "$CC4/need_cpus"          "1" "Gold need_cpus (3->1)"
+write_val "$CC4/busy_up_thres"  "75 75 75" "Gold busy_up (60->75)"
+write_val "$CC4/busy_down_thres" "20 20 20" "Gold busy_down (30->20)"
+write_val "$CC4/offline_delay_ms" "100" "Gold offline_delay"
+write_val "$CC4/task_thres"        "4" "Gold task_thres (3->4)"
+
+sec "PRIME (CPU7)"
+write_val "$P7/scaling_max_freq" "2707200" "Prime max (daemon holds vs ORMS)"
+write_val "$W7/target_loads" "90 2707200:99" "Prime target_loads"
+write_val "$W7/hispeed_freq"   "1651200" "Prime hispeed"
+write_val "$W7/hispeed_load"       "90" "Prime hispeed_load"
+write_val "$W7/adaptive_low_freq"  "787200" "Prime adaptive_low"
+write_val "$W7/adaptive_high_freq" "1651200" "Prime adaptive_high"
+write_val "$W7/up_rate_limit_us"   "1000" "Prime up_rate (0->1000)"
+write_val "$W7/down_rate_limit_us" "2000" "Prime down_rate"
+write_val "$W7/rtg_boost_freq"        "0" "Prime rtg_boost (0)"
+write_val "$W7/boost"                 "0" "Prime boost off"
+
+CC7="/sys/devices/system/cpu/cpu7/core_ctl"
+write_val "$CC7/busy_up_thres"    "92" "Prime busy_up (60->92)"
+write_val "$CC7/busy_down_thres"  "10" "Prime busy_down (30->10)"
+write_val "$CC7/offline_delay_ms" "50" "Prime offline_delay (100->50)"
+write_val "$CC7/task_thres"        "1" "Prime task_thres"
+
+sec "WALT GLOBAL"
+write_val "$WP/sched_boost"                       "0" "sched_boost off"
+write_val "$WP/sched_lib_mask_force"            "112" "lib_mask (240->112 no Prime)"
+write_val "$WP/sched_sync_hint_enable"            "0" "sync_hint off"
+write_val "$WP/sched_many_wakeup_threshold"       "3" "many_wakeup (1000->3)"
+write_val "$WP/sched_coloc_downmigrate_ns"  "16000000" "coloc_downmigrate (400ms->16ms)"
+write_val "$WP/sched_coloc_busy_hysteresis_enable_cpus" "255" "coloc_hyst_cpus (240->255)"
+write_val "$WP/sched_busy_hysteresis_enable_cpus" "255" "busy_hyst_cpus (15->255)"
+write_val "$WP/sched_busy_hyst_ns"            "2000000" "busy_hyst_ns (3ms->2ms)"
+write_val "$WP/sched_min_task_util_for_colocation" "35" "min_util_coloc (1000->35)"
+write_val "$WP/sched_min_task_util_for_boost"      "51" "min_util_boost"
+write_val "$WP/sched_group_downmigrate"            "85" "group_downmigrate (380->85)"
+write_val "$WP/sched_force_lb_enable"               "1" "force_lb"
+write_val "$WP/sched_conservative_pl"               "1" "conservative_pl (0->1)"
+write_val "$WP/sched_hyst_min_coloc_ns"      "80000000" "hyst_min_coloc (80ms stock)"
+write_val "$WP/sched_coloc_busy_hyst_max_ms"     "5000" "coloc_hyst_max (5000 stock)"
+write_tab "$WP/sched_upmigrate"             "95" "95" "upmigrate (95 stock)"
+write_val "$WP/sched_enable_tp"                    "0" "enable_tp off"
+write_tab "$WP/sched_init_task_load"              "0"  "0"  "init_task_load (1 0->0 0 no new task bias)"
+
+sec "KERNEL MODULE PARAMS (oplus_bsp neuter)"
+_try_mod "/sys/module/cpufreq_bouncing/parameters/enable" "0" "cpufreq_bouncing disable (stop Gold/Prime freq spikes)"
+_try_mod "/sys/module/cpufreq_effiency/parameters/cluster0_effiency" "307200,45000,0,0,0" "Silver effiency remove 1324800 boost"
+_try_mod "/sys/module/oplus_bsp_task_sched/parameters/sched_info_ctrl" "N" "oplus_bsp_task_sched off (stop WALT override)"
+_try_mod "/sys/module/oplus_bsp_sched_assist/parameters/boost_kill" "0" "oplus_bsp boost_kill off"
+_try_mod "/sys/module/oplus_bsp_sched_assist/parameters/locking_wakeup_preepmt_enable" "0" "oplus_bsp locking_preempt off"
+
+log "CPU v3.0 done"

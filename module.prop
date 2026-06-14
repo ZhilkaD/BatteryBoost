@@ -1,0 +1,7 @@
+id=batteryboost_gtneo5se
+name=BatteryBoost GT Neo5 SE
+version=v3.0.0
+versionCode=300
+author=ZhilD
+description=v3.0: ORMS neutralized (bind-mount stub), Silver need_cpus=0, Gold need_cpus=1, sched_boost=0, tunable_scaling=1, init_task_load=0, Silver offline 50ms, zram zstd, compaction 20, thermal daemon, WiFi autosuspend 5s, removed firmware-locked/msm_irqbalance/UFS IRQ. RMX3700/RE585F A16.
+updateJson=

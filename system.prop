@@ -1,0 +1,16 @@
+persist.config.doze.enabled=1
+vendor.display.enable_qsync_idle=1
+persist.oplus.display.vrr=1
+persist.sys.oplus.perfetto.enable=false
+debug.hwui.skia_use_perfetto_track_events=false
+dalvik.vm.heaptargetutilization=0.80
+dalvik.vm.heapminfree=512k
+debug.oplus.systrace_enhance=false
+debug.sf.oplus_display_trace.enable=0
+debug.hwui.skia_atrace_enabled=false
+debug.hwui.skia_tracing_enabled=false
+vendor.perf.iop_v3.enable=false
+persist.vendor.qperfget=false
+vendor.perf.hmp.num_threads=4
+vendor.perf.debug.level=0
+persist.sys.oplus.storage.bandwidth_monitor=0
